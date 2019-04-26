@@ -2876,6 +2876,7 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
     // nicely with HTTP errors.
     opts = opts || {};
     const backwards = opts.backwards || false;
+    const showSolicitations = opts.showSolicitations || false;
 
     if (isNotifTimeline) {
         if (!backwards) {
@@ -2902,7 +2903,13 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
     const self = this;
 
     if (isNotifTimeline) {
-        path = "/notifications";
+        
+        if (showSolicitations) {
+            path = "/solicitations";
+        } else {
+            path = "/notifications";
+        }
+        console.log("Meu path: " + path);
         params = {
             limit: ('limit' in opts) ? opts.limit : 30,
             only: 'highlight',
