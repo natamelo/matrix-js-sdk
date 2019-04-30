@@ -157,7 +157,7 @@ MatrixBaseApis.prototype.isUsernameAvailable = function(username) {
  */
 MatrixBaseApis.prototype.register = function(
     username, password,
-    sessionId, auth, bindThreepids, guestAccessToken,
+    sessionId, auth, bindThreepids, usertype, guestAccessToken,
     callback,
 ) {
     // backwards compat
@@ -179,6 +179,9 @@ MatrixBaseApis.prototype.register = function(
     };
     if (username !== undefined && username !== null) {
         params.username = username;
+    }
+    if (usertype !== undefined && usertype !== null) {
+        params.usertype = usertype;
     }
     if (password !== undefined && password !== null) {
         params.password = password;
@@ -231,6 +234,8 @@ MatrixBaseApis.prototype.registerRequest = function(data, kind, callback) {
     if (kind) {
         params.kind = kind;
     }
+
+    console.log('REGISTER REQUEST DATA', data);
 
     return this._http.request(
         callback, "POST", "/register", params, data,
