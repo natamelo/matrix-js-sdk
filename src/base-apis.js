@@ -235,8 +235,6 @@ MatrixBaseApis.prototype.registerRequest = function(data, kind, callback) {
         params.kind = kind;
     }
 
-    console.log('REGISTER REQUEST DATA', data);
-
     return this._http.request(
         callback, "POST", "/register", params, data,
     );
