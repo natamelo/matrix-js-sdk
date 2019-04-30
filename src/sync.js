@@ -101,6 +101,7 @@ function SyncApi(client, opts) {
     this._keepAliveTimer = null;
     this._connectionReturnedDefer = null;
     this._notifEvents = []; // accumulator of sync events in the current sync response
+    this._solicitationEvents = [];
     this._failedSyncCount = 0; // Number of consecutive failed /sync requests
     this._storeIsInvalid = false; // flag set if the store needs to be cleared before we can start
 
@@ -108,6 +109,12 @@ function SyncApi(client, opts) {
         client.reEmitter.reEmit(client.getNotifTimelineSet(),
                ["Room.timeline", "Room.timelineReset"]);
     }
+
+    if (client.getSolicitationTimelineSet()) {
+        client.reEmitter.reEmit(client.getSolicitationTimelineSet(),
+               ["Room.timeline", "Room.timelineReset"]);
+    }
+
 }
 
 /**
@@ -242,6 +249,7 @@ SyncApi.prototype.syncLeftRooms = function() {
             client.emit("Room", room);
 
             self._processEventsForNotifs(room, timelineEvents);
+            self._processEventsForSolicitations(room, timelineEvents);
         });
         return rooms;
     });
@@ -576,6 +584,8 @@ SyncApi.prototype.sync = function() {
         // The right solution would be to tie /sync pagination tokens into
         // /notifications API somehow.
         client.resetNotifTimelineSet();
+        client.resetSolicitationTimelineSet();
+        
 
         if (self._currentSyncRequest === null) {
             // Send this first sync request here so we can then wait for the saved
@@ -1081,6 +1091,7 @@ SyncApi.prototype._processSyncResponse = async function(
     }
 
     this._notifEvents = [];
+    this._solicitationEvents = [];
 
     // Handle invites
     inviteRooms.forEach(function(inviteObj) {
@@ -1186,6 +1197,7 @@ SyncApi.prototype._processSyncResponse = async function(
                 // reason to stop incrementally tracking notifications and
                 // reset the timeline.
                 client.resetNotifTimelineSet();
+                client.resetSolicitationTimelineSet();    
 
                 self._registerStateListeners(room);
             }
@@ -1215,6 +1227,7 @@ SyncApi.prototype._processSyncResponse = async function(
         }
 
         self._processEventsForNotifs(room, timelineEvents);
+        self._processEventsForSolicitations(room, timelineEvents);
 
         async function processRoomEvent(e) {
             client.emit("event", e);
@@ -1265,6 +1278,7 @@ SyncApi.prototype._processSyncResponse = async function(
         }
 
         self._processEventsForNotifs(room, timelineEvents);
+        self._processEventsForSolicitations(room, timelineEvents);
 
         stateEvents.forEach(function(e) {
             client.emit("event", e);
@@ -1286,8 +1300,19 @@ SyncApi.prototype._processSyncResponse = async function(
         this._notifEvents.sort(function(a, b) {
             return a.getTs() - b.getTs();
         });
+        
         this._notifEvents.forEach(function(event) {
             client.getNotifTimelineSet().addLiveEvent(event);
+        });
+    }
+
+    if (syncEventData.oldSyncToken && this._solicitationEvents.length) {
+        this._solicitationEvents.sort(function(a, b) {
+            return a.getTs() - b.getTs();
+        });
+        
+        this._solicitationEvents.forEach(function(event) {
+            client.getSolicitationTimelineSet().addLiveEvent(event);
         });
     }
 
@@ -1599,6 +1624,19 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
         }
     }
 };
+
+SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {
+    if (this.client.getSolicitationTimelineSet()) {
+        for (let i = 0; i < timelineEventList.length; i++) {
+            const pushActions = this.client.getPushActionsForEvent(timelineEventList[i]);
+            if (pushActions && pushActions.notify &&
+                pushActions.tweaks && pushActions.tweaks.highlight) {
+                this._solicitationEvents.push(timelineEventList[i]);
+            }
+        }
+    }
+};
+
 
 /**
  * @return {string}
