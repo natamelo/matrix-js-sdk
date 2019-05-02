@@ -2888,6 +2888,7 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
     opts = opts || {};
     const backwards = opts.backwards || false;
     const showSolicitations = opts.showSolicitations || false;
+    const roomId = opts.roomId || 0;
 
     if (isNotifTimeline) {
         if (!backwards) {
@@ -2924,6 +2925,7 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
         params = {
             limit: ('limit' in opts) ? opts.limit : 30,
             only: 'highlight',
+            room_id: roomId,
         };
 
         if (token && token !== "end") {

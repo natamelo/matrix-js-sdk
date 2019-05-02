@@ -1616,6 +1616,7 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
     // gather our notifications into this._notifEvents
     if (this.client.getNotifTimelineSet()) {
         for (let i = 0; i < timelineEventList.length; i++) {
+            const event = timelineEventList[i];
             const pushActions = this.client.getPushActionsForEvent(timelineEventList[i]);
             if (pushActions && pushActions.notify &&
                 pushActions.tweaks && pushActions.tweaks.highlight) {
@@ -1625,12 +1626,11 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
     }
 };
 
-SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {
+SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {    
     if (this.client.getSolicitationTimelineSet()) {
         for (let i = 0; i < timelineEventList.length; i++) {
-            const pushActions = this.client.getPushActionsForEvent(timelineEventList[i]);
-            if (pushActions && pushActions.notify &&
-                pushActions.tweaks && pushActions.tweaks.highlight) {
+            const event = timelineEventList[i];
+            if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status) {
                 this._solicitationEvents.push(timelineEventList[i]);
             }
         }
