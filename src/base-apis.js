@@ -157,7 +157,7 @@ MatrixBaseApis.prototype.isUsernameAvailable = function(username) {
  */
 MatrixBaseApis.prototype.register = function(
     username, password,
-    sessionId, auth, bindThreepids, guestAccessToken,
+    sessionId, auth, bindThreepids, usertype, guestAccessToken,
     callback,
 ) {
     // backwards compat
@@ -179,6 +179,9 @@ MatrixBaseApis.prototype.register = function(
     };
     if (username !== undefined && username !== null) {
         params.username = username;
+    }
+    if (usertype !== undefined && usertype !== null) {
+        params.usertype = usertype;
     }
     if (password !== undefined && password !== null) {
         params.password = password;
@@ -891,17 +894,28 @@ MatrixBaseApis.prototype.sendStateEvent = function(roomId, eventType, content, s
 /**
  * @param {string} roomId
  * @param {string} eventId
+ * @param {string} [txnId]  transaction id. One will be made up if not
+ *    supplied.
  * @param {module:client.callback} callback Optional.
  * @return {module:client.Promise} Resolves: TODO
  * @return {module:http-api.MatrixError} Rejects: with an error response.
  */
-MatrixBaseApis.prototype.redactEvent = function(roomId, eventId, callback) {
-    const path = utils.encodeUri("/rooms/$roomId/redact/$eventId", {
+MatrixBaseApis.prototype.redactEvent = function(
+    roomId, eventId, txnId, callback,
+) {
+    if (arguments.length === 3) {
+        callback = txnId;
+    }
+
+    const path = utils.encodeUri("/rooms/$roomId/redact/$eventId/$tnxId", {
         $roomId: roomId,
         $eventId: eventId,
+        $txnId: txnId ? txnId : this.makeTxnId(),
     });
-    return this._http.authedRequest(callback, "POST", path, undefined, {});
+
+    return this._http.authedRequest(callback, "PUT", path, undefined, {});
 };
+
 
 /**
  * @param {string} roomId

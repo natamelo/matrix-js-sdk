@@ -454,6 +454,16 @@ SyncApi.prototype._wasLazyLoadingToggled = async function(lazyLoadMembers) {
     return false;
 };
 
+SyncApi.prototype._shouldAbortSync = function(error) {
+    if (error.errcode === "M_UNKNOWN_TOKEN") {
+        // The logout already happened, we just need to stop.
+        console.warn("Token no longer valid - assuming logout");
+        this.stop();
+        return true;
+    }
+    return false;
+};
+
 /**
  * Main entry point
  */
@@ -488,6 +498,7 @@ SyncApi.prototype.sync = function() {
             client.pushRules = result;
         } catch (err) {
             console.error("Getting push rules failed", err);
+            if (self._shouldAbortSync(err)) return;
             // wait for saved sync to complete before doing anything else,
             // otherwise the sync state will end up being incorrect
             debuglog("Waiting for saved sync before retrying push rules...");
@@ -573,6 +584,7 @@ SyncApi.prototype.sync = function() {
             );
         } catch (err) {
             console.error("Getting filter failed", err);
+            if (self._shouldAbortSync(err)) return;
             // wait for saved sync to complete before doing anything else,
             // otherwise the sync state will end up being incorrect
             debuglog("Waiting for saved sync before retrying filter...");
@@ -888,6 +900,10 @@ SyncApi.prototype._onSyncError = function(err, syncOptions) {
     console.error("/sync error %s", err);
     console.error(err);
 
+    if(this._shouldAbortSync(err)) {
+        return;
+    }
+
     this._failedSyncCount++;
     console.log('Number of consecutive failed sync requests:', this._failedSyncCount);
 
@@ -1100,7 +1116,6 @@ SyncApi.prototype._processSyncResponse = async function(
         const stateEvents =
             self._mapSyncEventsFormat(inviteObj.invite_state, room);
 
-        room.updateMyMembership("invite");
         self._processRoomEvents(room, stateEvents);
         if (inviteObj.isBrandNewRoom) {
             room.recalculate();
@@ -1110,6 +1125,7 @@ SyncApi.prototype._processSyncResponse = async function(
         stateEvents.forEach(function(e) {
             client.emit("event", e);
         });
+        room.updateMyMembership("invite");
     });
 
     // Handle joins
@@ -1138,8 +1154,6 @@ SyncApi.prototype._processSyncResponse = async function(
                 );
             }
         }
-
-        room.updateMyMembership("join");
 
         joinObj.timeline = joinObj.timeline || {};
 
@@ -1255,6 +1269,8 @@ SyncApi.prototype._processSyncResponse = async function(
         accountDataEvents.forEach(function(e) {
             client.emit("event", e);
         });
+
+        room.updateMyMembership("join");
     });
 
     // Handle leaves (e.g. kicked rooms)
@@ -1266,8 +1282,6 @@ SyncApi.prototype._processSyncResponse = async function(
             self._mapSyncEventsFormat(leaveObj.timeline, room);
         const accountDataEvents =
             self._mapSyncEventsFormat(leaveObj.account_data);
-
-        room.updateMyMembership("leave");
 
         self._processRoomEvents(room, stateEvents, timelineEvents);
         room.addAccountData(accountDataEvents);
@@ -1290,6 +1304,8 @@ SyncApi.prototype._processSyncResponse = async function(
         accountDataEvents.forEach(function(e) {
             client.emit("event", e);
         });
+
+        room.updateMyMembership("leave");
     });
 
     // update the notification timeline, if appropriate.
