@@ -210,6 +210,10 @@ EventTimelineSet.prototype.getTimelineForEvent = function(eventId) {
     return (res === undefined) ? null : res;
 };
 
+EventTimelineSet.prototype.realoadLocalTimeline = function(event, roomId, eventId) {
+    this.emit("Room.timelineUpdate");          
+};
+
 /**
  * Get an event which is stored in our timelines
  *
@@ -472,14 +476,26 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
         }
     }
 
-    const timeline = this._eventIdToTimeline[event.getId()];
+    //var timeline = null;
+    //const isEventToSolicitation = event.getContent() && event.getContent().old_event_id;
+    //if (isEventToSolicitation) {
+    //    timeline = this._eventIdToTimeline[event.getContent().old_event_id]
+    //} else {
+        
+    //}
+
+    /*const timeline = this._eventIdToTimeline[event.getId()];
     if (timeline) {
-        if (duplicateStrategy === "replace") {
+        if (duplicateStrategy === "replace" || 
+            (event.getContent().action && event.getContent().action == 'update')) {
             debuglog("EventTimelineSet.addLiveEvent: replacing duplicate event " +
                      event.getId());
+            
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
-                if (tlEvents[j].getId() === event.getId()) {
+
+                const isTheSameEvent = tlEvents[j].getId() === event.getId();
+                if (isTheSameEvent) {
                     // still need to set the right metadata on this event
                     EventTimeline.setEventMetadata(
                         event,
@@ -491,18 +507,54 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
                         tlEvents[j] = event;
                     }
 
-                    // XXX: we need to fire an event when this happens.
-                    break;
+                    //emitir evento
+                    return;
+                }
+                
+                const isTheOldEventToSolicitation = event.getContent() && 
+                                                    event.getContent().old_event_id && 
+                                                    tlEvents[j].getId() === event.getContent().old_event_id;
+                console.log("isTheOldEventToSolicitation:: " + isTheOldEventToSolicitation);
+                if (isTheOldEventToSolicitation) {
+                    EventTimeline.setEventMetadata(
+                        event,
+                        timeline.getState(EventTimeline.FORWARDS),
+                        false,
+                    );
+
+                    if (!tlEvents[j].encryptedType) {
+                        console.log("entrei botino!");
+                        tlEvents[j].getContent().status = 'CIENTE';
+                        console.log(">>novovalor " + JSON.stringify(tlEvents[j].getContent()));
+                    }
+                    return;    
                 }
             }
         } else {
             debuglog("EventTimelineSet.addLiveEvent: ignoring duplicate event " +
                      event.getId());
         }
-        return;
-    }
+    }*/
 
-    this.addEventToTimeline(event, this._liveTimeline, false);
+    if (event.action &&  event.action === "updateSolicitation") {
+        const timeline = this._eventIdToTimeline[event.getContent().old_event_id]
+        if (timeline) {
+            const tlEvents = timeline.getEvents();
+            for (let j = 0; j < tlEvents.length; j++) {
+                const isTheOldEventToSolicitation = tlEvents[j].getId() === event.getContent().old_event_id;
+                if (isTheOldEventToSolicitation) {
+                    
+                    if (!tlEvents[j].encryptedType) {
+                        tlEvents[j].getContent().status = 'CIENTE';
+                        this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id, tlEvents[j].getId());
+                        break;
+                    }
+                }
+            }
+        }
+    } else {
+        this.addEventToTimeline(event, this._liveTimeline, false);
+    }
 };
 
 /**

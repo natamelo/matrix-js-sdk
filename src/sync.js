@@ -112,7 +112,7 @@ function SyncApi(client, opts) {
 
     if (client.getSolicitationTimelineSet()) {
         client.reEmitter.reEmit(client.getSolicitationTimelineSet(),
-               ["Room.timeline", "Room.timelineReset"]);
+               ["Room.timeline", "Room.timelineUpdate", "Room.timelineReset"]);
     }
 
 }
@@ -128,7 +128,8 @@ SyncApi.prototype.createRoom = function(roomId) {
         pendingEventOrdering: this.opts.pendingEventOrdering,
         timelineSupport: client.timelineSupport,
     });
-    client.reEmitter.reEmit(room, ["Room.name", "Room.timeline", "Room.redaction",
+    client.reEmitter.reEmit(room, ["Room.name", "Room.timeline",
+                          "Room.timelineUpdate", "Room.redaction",
                           "Room.receipt", "Room.tags",
                           "Room.timelineReset",
                           "Room.localEchoUpdated",
@@ -1626,12 +1627,25 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
     }
 };
 
-SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {    
+SyncApi.prototype._updateSolicitation = function(event_id, status) {
+    console.log(">>tamanho: " + this._solicitationEvents.length);
+    for (let i = 0; i < this._solicitationEvents.length; i++) {
+        console.log(">> " + JSON.stringify(this._solicitationEvents[i].getContent()));
+        if (this._solicitationEvents[i].event_id === event_id) {
+            this._solicitationEvents[i].getContent().status = status;
+        }
+    }
+}
+
+SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {  
     if (this.client.getSolicitationTimelineSet()) {
         for (let i = 0; i < timelineEventList.length; i++) {
-            const event = timelineEventList[i];
-            if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status) {
+            const event = timelineEventList[i];            
+            if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && !event.getContent().action) {
                 this._solicitationEvents.push(timelineEventList[i]);
+            } else if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && event.getContent().action) {
+                event["action"] = "updateSolicitation";
+                this._solicitationEvents.push(event);
             }
         }
     }

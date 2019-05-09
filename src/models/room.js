@@ -1288,6 +1288,7 @@ Room.prototype.updatePendingEvent = function(event, newStatus, newEventId) {
  */
 Room.prototype.addLiveEvents = function(events, duplicateStrategy) {
     let i;
+    
     if (duplicateStrategy && ["replace", "ignore"].indexOf(duplicateStrategy) === -1) {
         throw new Error("duplicateStrategy MUST be either 'replace' or 'ignore'");
     }
@@ -1320,7 +1321,11 @@ Room.prototype.addLiveEvents = function(events, duplicateStrategy) {
         else {
             // TODO: We should have a filter to say "only add state event
             // types X Y Z to the timeline".
-            this._addLiveEvent(events[i], duplicateStrategy);
+            //const action = events[i].getContent().action;
+            //if (action && action === 'update') {
+            //    duplicateStrategy = 'replace';
+            //}
+            this._addLiveEvent(events[  i], duplicateStrategy);
         }
     }
 };
