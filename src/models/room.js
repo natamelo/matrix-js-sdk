@@ -689,6 +689,9 @@ Room.prototype.setSummary = function(summary) {
     const heroes = summary["m.heroes"];
     const joinedCount = summary["m.joined_member_count"];
     const invitedCount = summary["m.invited_member_count"];
+    const interventationStatus = summary["m.intervention_status"];
+    
+    console.log(">> interventationStatus: " + interventationStatus);
     if (Number.isInteger(joinedCount)) {
         this.currentState.setJoinedMemberCount(joinedCount);
     }
@@ -702,6 +705,10 @@ Room.prototype.setSummary = function(summary) {
         this._summaryHeroes = heroes.filter((userId) => {
             return userId !== this.myUserId;
         });
+    }
+
+    if (interventationStatus) {
+        this.currentState.setInterventionStatus(interventationStatus);
     }
 };
 
