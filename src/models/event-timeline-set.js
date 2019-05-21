@@ -545,7 +545,9 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
                 if (isTheOldEventToSolicitation) {
                     
                     if (!tlEvents[j].encryptedType) {
-                        tlEvents[j].getContent().status = 'Ciente';
+                        console.log('STATUS DO EVENTO');
+                        console.log(event.getContent().status);
+                        tlEvents[j].getContent().status = event.getContent().status;
                         tlEvents[j].getContent().open_solicitation = false;
                         this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id, tlEvents[j].getId());
                         break;
