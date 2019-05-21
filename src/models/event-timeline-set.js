@@ -475,7 +475,7 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
             return;
         }
     }
-
+    
     if (event.action &&  event.action === "updateSolicitation") {
         const timeline = this._eventIdToTimeline[event.getContent().old_event_id]
         if (timeline) {
@@ -494,6 +494,12 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
             }
         }
     } else {
+        
+        if (event.event && event.event.content && 
+            event.event.content.action === "update_intervention" &&
+            this.room.currentState.getInterventionStatus() !== event.event.content.status) {
+            this.room.currentState.setInterventionStatus(event.event.content.status);
+        }
         this.addEventToTimeline(event, this._liveTimeline, false);
     }
 };
