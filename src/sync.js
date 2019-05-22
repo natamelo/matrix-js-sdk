@@ -1644,9 +1644,7 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
 };
 
 SyncApi.prototype._updateSolicitation = function(event_id, status) {
-    console.log(">>tamanho: " + this._solicitationEvents.length);
     for (let i = 0; i < this._solicitationEvents.length; i++) {
-        console.log(">> " + JSON.stringify(this._solicitationEvents[i].getContent()));
         if (this._solicitationEvents[i].event_id === event_id) {
             this._solicitationEvents[i].getContent().status = status;
         }

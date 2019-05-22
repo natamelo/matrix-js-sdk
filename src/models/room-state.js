@@ -91,6 +91,8 @@ function RoomState(roomId, oobMemberFlags = undefined) {
     this._invitedMemberCount = null;
     this._summaryInvitedMemberCount = null;
 
+    this._summaryInterventionStatus = null;
+
     if (!oobMemberFlags) {
         oobMemberFlags = {
             status: OOB_STATUS_NOTSTARTED,
@@ -140,12 +142,23 @@ RoomState.prototype.getInvitedMemberCount = function() {
     return this._invitedMemberCount;
 };
 
+RoomState.prototype.getInterventionStatus = function() {
+    if (this._summaryInterventionStatus !== null) {
+        return this._summaryInterventionStatus;
+    }
+    return null;
+}
+
 /**
  * Set the amount of invited members in this room
  * @param {number} count the amount of invited members
  */
 RoomState.prototype.setInvitedMemberCount = function(count) {
     this._summaryInvitedMemberCount = count;
+};
+
+RoomState.prototype.setInterventionStatus = function(status) {
+    this._summaryInterventionStatus = status;
 };
 
 /**
