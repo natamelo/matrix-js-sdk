@@ -211,7 +211,7 @@ EventTimelineSet.prototype.getTimelineForEvent = function(eventId) {
 };
 
 EventTimelineSet.prototype.realoadLocalTimeline = function(event, roomId, eventId) {
-    this.emit("Room.timelineUpdate");          
+    this.emit("Room.timelineUpdate");
 };
 
 /**
@@ -475,15 +475,15 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
             return;
         }
     }
-    
+
     if (event.action &&  event.action === "updateSolicitation") {
-        const timeline = this._eventIdToTimeline[event.getContent().old_event_id]
+        const timeline = this._eventIdToTimeline[event.getContent().old_event_id];
         if (timeline) {
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
                 const isTheOldEventToSolicitation = tlEvents[j].getId() === event.getContent().old_event_id;
                 if (isTheOldEventToSolicitation) {
-                    
+
                     if (!tlEvents[j].encryptedType) {
                         tlEvents[j].getContent().status = 'Ciente';
                         tlEvents[j].getContent().open_solicitation = false;
@@ -494,8 +494,8 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
             }
         }
     } else {
-        
-        if (event.event && event.event.content && 
+
+        if (event.event && event.event.content &&
             event.event.content.action === "update_intervention" &&
             this.room.currentState.getInterventionStatus() !== event.event.content.status) {
             this.room.currentState.setInterventionStatus(event.event.content.status);

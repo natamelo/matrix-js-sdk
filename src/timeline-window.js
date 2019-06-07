@@ -81,6 +81,7 @@ function TimelineWindow(client, timelineSet, opts) {
     this._eventCount = 0;
     this._windowLimit = opts.windowLimit || 1000;
     this._showSolicitations = opts.showSolicitations || false;
+    this._showInterventions = opts.showInterventions || false;
     this._roomId = opts.roomId || -1;
 }
 
@@ -279,6 +280,7 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
         backwards: direction == EventTimeline.BACKWARDS,
         limit: size,
         showSolicitations: this._showSolicitations,
+        showInterventions: this._showInterventions,
         roomId: this._roomId,
     }).finally(function() {
         tl.pendingPaginate = null;
