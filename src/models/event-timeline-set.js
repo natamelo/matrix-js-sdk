@@ -483,11 +483,9 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
             for (let j = 0; j < tlEvents.length; j++) {
                 const isTheOldEventToSolicitation = tlEvents[j].getId() === event.getContent().old_event_id;
                 if (isTheOldEventToSolicitation) {
-
                     if (!tlEvents[j].encryptedType) {
-                        // tlEvents[j].getContent().status = 'Ciente';
-                        // tlEvents[j].getContent().open_solicitation = false;
-                        // this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id, tlEvents[j].getId());
+                        tlEvents[j].getContent().atual_status = 'Ciente';
+                        this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id, tlEvents[j].getId());
                         event.getContent().solicitation_number = tlEvents[j].getContent().solicitation_number;
                         this.addEventToTimeline(event, this._liveTimeline, false);
                         break;
