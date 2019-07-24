@@ -481,17 +481,18 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
         if (timeline) {
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
-                const isTheOldEventToSolicitation = tlEvents[j].getId() === event.getContent().old_event_id;
+                const isTheOldEventToSolicitation =
+                    tlEvents[j].getId() === event.getContent().old_event_id;
                 if (isTheOldEventToSolicitation) {
-                    if (!tlEvents[j] .encryptedType) {
+                    if (!tlEvents[j].encryptedType) {
                         if (event.getContent().status === 'Ciente') {
-                            tlEvents[j].getContent().atual_status = 'Ciente';
+                            tlEvents[j].getContent().status = 'Ciente';
                         } else {
-                            tlEvents[j].getContent().atual_status = 'Cancelada';
+                            tlEvents[j].getContent().status = 'Cancelada';
                         }
-                        this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id, tlEvents[j].getId());
-                        event.getContent().solicitation_number = tlEvents[j].getContent().solicitation_number;
-                        this.addEventToTimeline(event, this._liveTimeline, false);
+                        tlEvents[j].getContent().open_solicitation = false;
+                        this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id,
+                                                  tlEvents[j].getId());
                         break;
                     }
                 }
