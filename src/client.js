@@ -2971,6 +2971,7 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
             if (backwards && !res.next_token) {
                 eventTimeline.setPaginationToken(null, dir);
             }
+
             return res.next_token ? true : false;
         }).finally(function() {
             eventTimeline._paginationRequests[dir] = null;
