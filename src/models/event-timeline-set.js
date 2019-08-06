@@ -476,9 +476,8 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
         }
     }
 
-    if (event.action && event.action === "updateSolicitation") {
+    if (event.content) {
         const timeline = this._liveTimeline;
-        console.log('SOLICITATION EVENT', event.getContent());
         if (timeline) {
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
