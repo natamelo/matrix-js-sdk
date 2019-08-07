@@ -493,7 +493,6 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
                         } else if (event.getContent().status === 'Finalizado') {
                             tlEvents[j].getContent().status = 'Finalizado';
                         }
-                        tlEvents[j].getContent().open_solicitation = false;
                         this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id,
                                                   tlEvents[j].getId());
                         break;
