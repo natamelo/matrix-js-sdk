@@ -478,7 +478,6 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
 
     if (event.action && event.action === "updateSolicitation") {
         const timeline = this._liveTimeline;
-        console.log('SOLICITATION EVENT', event.getContent());
         if (timeline) {
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
@@ -494,9 +493,6 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
                         } else if (event.getContent().status === 'Finalizado') {
                             tlEvents[j].getContent().status = 'Finalizado';
                         }
-                        tlEvents[j].getContent().open_solicitation = false;
-                        tlEvents[j].event_id = event.getId();
-                        tlEvents[j].event.event_id = event.getId();
                         this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id,
                                                   tlEvents[j].getId());
                         break;
