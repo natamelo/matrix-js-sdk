@@ -299,7 +299,7 @@ function PushProcessor(client) {
         if (!rule) {
             return {};
         }
-
+        
         const actionObj = PushProcessor.actionListToActionsObject(rule.actions);
 
         // Some actions are implicit in some situations: we add those here
@@ -308,7 +308,7 @@ function PushProcessor(client) {
             // rule but otherwise not
             actionObj.tweaks.highlight = (rule.kind == 'content');
         }
-
+        
         return actionObj;
     };
 

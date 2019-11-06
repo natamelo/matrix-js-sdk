@@ -210,6 +210,10 @@ EventTimelineSet.prototype.getTimelineForEvent = function(eventId) {
     return (res === undefined) ? null : res;
 };
 
+EventTimelineSet.prototype.realoadLocalTimeline = function(event, roomId, eventId) {
+    this.emit("Room.timelineUpdate");
+};
+
 /**
  * Get an event which is stored in our timelines
  *
@@ -472,37 +476,39 @@ EventTimelineSet.prototype.addLiveEvent = function(event, duplicateStrategy) {
         }
     }
 
-    const timeline = this._eventIdToTimeline[event.getId()];
-    if (timeline) {
-        if (duplicateStrategy === "replace") {
-            debuglog("EventTimelineSet.addLiveEvent: replacing duplicate event " +
-                     event.getId());
+    if (event.action && event.action === "updateSolicitation") {
+        const timeline = this._liveTimeline;
+        if (timeline) {
             const tlEvents = timeline.getEvents();
             for (let j = 0; j < tlEvents.length; j++) {
-                if (tlEvents[j].getId() === event.getId()) {
-                    // still need to set the right metadata on this event
-                    EventTimeline.setEventMetadata(
-                        event,
-                        timeline.getState(EventTimeline.FORWARDS),
-                        false,
-                    );
-
+                const isTheOldEventToSolicitation =
+                    parseInt(tlEvents[j].getContent().solicitation_number)
+                    === parseInt(event.getContent().solicitation_number);
+                if (isTheOldEventToSolicitation) {
                     if (!tlEvents[j].encryptedType) {
-                        tlEvents[j] = event;
+                        if (event.getContent().status === 'Ciente') {
+                            tlEvents[j].getContent().status = 'Ciente';
+                        } else if (event.getContent().status === 'Cancelada') {
+                            tlEvents[j].getContent().status = 'Cancelada';
+                        } else if (event.getContent().status === 'Finalizado') {
+                            tlEvents[j].getContent().status = 'Finalizado';
+                        }
+                        this.realoadLocalTimeline(tlEvents[j], tlEvents[j].event.room_id,
+                                                  tlEvents[j].getId());
+                        break;
                     }
-
-                    // XXX: we need to fire an event when this happens.
-                    break;
                 }
             }
-        } else {
-            debuglog("EventTimelineSet.addLiveEvent: ignoring duplicate event " +
-                     event.getId());
         }
-        return;
-    }
+    } else {
 
-    this.addEventToTimeline(event, this._liveTimeline, false);
+        if (event.event && event.event.content &&
+            event.event.content.action === "update_intervention" &&
+            this.room.currentState.getInterventionStatus() !== event.event.content.status) {
+            this.room.currentState.setInterventionStatus(event.event.content.status);
+        }
+        this.addEventToTimeline(event, this._liveTimeline, false);
+    }
 };
 
 /**

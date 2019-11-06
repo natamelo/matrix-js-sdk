@@ -101,6 +101,8 @@ function SyncApi(client, opts) {
     this._keepAliveTimer = null;
     this._connectionReturnedDefer = null;
     this._notifEvents = []; // accumulator of sync events in the current sync response
+    this._solicitationEvents = [];
+    this._interventionEvents = [];
     this._failedSyncCount = 0; // Number of consecutive failed /sync requests
     this._storeIsInvalid = false; // flag set if the store needs to be cleared before we can start
 
@@ -108,6 +110,12 @@ function SyncApi(client, opts) {
         client.reEmitter.reEmit(client.getNotifTimelineSet(),
                ["Room.timeline", "Room.timelineReset"]);
     }
+
+    if (client.getSolicitationTimelineSet()) {
+        client.reEmitter.reEmit(client.getSolicitationTimelineSet(),
+               ["Room.timeline", "Room.timelineUpdate", "Room.timelineReset"]);
+    }
+
 }
 
 /**
@@ -121,7 +129,8 @@ SyncApi.prototype.createRoom = function(roomId) {
         pendingEventOrdering: this.opts.pendingEventOrdering,
         timelineSupport: client.timelineSupport,
     });
-    client.reEmitter.reEmit(room, ["Room.name", "Room.timeline", "Room.redaction",
+    client.reEmitter.reEmit(room, ["Room.name", "Room.timeline",
+                          "Room.timelineUpdate", "Room.redaction",
                           "Room.receipt", "Room.tags",
                           "Room.timelineReset",
                           "Room.localEchoUpdated",
@@ -242,6 +251,8 @@ SyncApi.prototype.syncLeftRooms = function() {
             client.emit("Room", room);
 
             self._processEventsForNotifs(room, timelineEvents);
+            self._processEventsForSolicitations(room, timelineEvents);
+            self._processEventsForInterventions(room, timelineEvents);
         });
         return rooms;
     });
@@ -588,6 +599,9 @@ SyncApi.prototype.sync = function() {
         // The right solution would be to tie /sync pagination tokens into
         // /notifications API somehow.
         client.resetNotifTimelineSet();
+        client.resetSolicitationTimelineSet();
+        client.resetInterventionTimelineSet();
+
 
         if (self._currentSyncRequest === null) {
             // Send this first sync request here so we can then wait for the saved
@@ -1097,6 +1111,8 @@ SyncApi.prototype._processSyncResponse = async function(
     }
 
     this._notifEvents = [];
+    this._solicitationEvents = [];
+    this._interventionEvents = [];
 
     // Handle invites
     inviteRooms.forEach(function(inviteObj) {
@@ -1200,6 +1216,8 @@ SyncApi.prototype._processSyncResponse = async function(
                 // reason to stop incrementally tracking notifications and
                 // reset the timeline.
                 client.resetNotifTimelineSet();
+                client.resetSolicitationTimelineSet();
+                client.resetInterventionTimelineSet();
 
                 self._registerStateListeners(room);
             }
@@ -1229,6 +1247,8 @@ SyncApi.prototype._processSyncResponse = async function(
         }
 
         self._processEventsForNotifs(room, timelineEvents);
+        self._processEventsForSolicitations(room, timelineEvents);
+        self._processEventsForInterventions(room, timelineEvents);
 
         async function processRoomEvent(e) {
             client.emit("event", e);
@@ -1279,6 +1299,8 @@ SyncApi.prototype._processSyncResponse = async function(
         }
 
         self._processEventsForNotifs(room, timelineEvents);
+        self._processEventsForSolicitations(room, timelineEvents);
+        self._processEventsForInterventions(room, timelineEvents);
 
         stateEvents.forEach(function(e) {
             client.emit("event", e);
@@ -1302,8 +1324,29 @@ SyncApi.prototype._processSyncResponse = async function(
         this._notifEvents.sort(function(a, b) {
             return a.getTs() - b.getTs();
         });
+
         this._notifEvents.forEach(function(event) {
             client.getNotifTimelineSet().addLiveEvent(event);
+        });
+    }
+
+    if (syncEventData.oldSyncToken && this._solicitationEvents.length) {
+        this._solicitationEvents.sort(function(a, b) {
+            return a.getTs() - b.getTs();
+        });
+
+        this._solicitationEvents.forEach(function(event) {
+            client.getSolicitationTimelineSet().addLiveEvent(event);
+        });
+    }
+
+    if (syncEventData.oldSyncToken && this._interventionEvents.length) {
+        this._interventionEvents.sort(function(a, b) {
+            return a.getTs() - b.getTs();
+        });
+
+        this._interventionEvents.forEach(function(event) {
+            client.getInterventionTimelineSet().addLiveEvent(event);
         });
     }
 
@@ -1607,6 +1650,7 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
     // gather our notifications into this._notifEvents
     if (this.client.getNotifTimelineSet()) {
         for (let i = 0; i < timelineEventList.length; i++) {
+            const event = timelineEventList[i];
             const pushActions = this.client.getPushActionsForEvent(timelineEventList[i]);
             if (pushActions && pushActions.notify &&
                 pushActions.tweaks && pushActions.tweaks.highlight) {
@@ -1615,6 +1659,51 @@ SyncApi.prototype._processEventsForNotifs = function(room, timelineEventList) {
         }
     }
 };
+
+SyncApi.prototype._updateSolicitation = function(event_id, status) {
+    for (let i = 0; i < this._solicitationEvents.length; i++) {
+        if (this._solicitationEvents[i].event_id === event_id) {
+            this._solicitationEvents[i].getContent().status = status;
+        }
+    }
+};
+
+SyncApi.prototype._updateIntervention = function(event_id, status) {
+    for (let i = 0; i < this._interventionEvents.length; i++) {
+        if (this._interventionEvents[i].event_id === event_id) {
+            this._interventionEvents[i].getContent().status = status;
+        }
+    }
+};
+
+SyncApi.prototype._processEventsForSolicitations = function(room, timelineEventList) {
+    if (this.client.getSolicitationTimelineSet()) {
+        for (let i = 0; i < timelineEventList.length; i++) {
+            const event = timelineEventList[i];
+            if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && !event.getContent().action) {
+                this._solicitationEvents.push(timelineEventList[i]);
+            } else if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && event.getContent().action) {
+                event["action"] = "updateSolicitation";
+                this._solicitationEvents.push(event);
+            }
+        }
+    }
+};
+
+SyncApi.prototype._processEventsForInterventions = function(room, timelineEventList) {
+    if (this.client.getInterventionTimelineSet()) {
+        for (let i = 0; i < timelineEventList.length; i++) {
+            const event = timelineEventList[i];
+            if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && !event.getContent().action) {
+                this._solicitationEvents.push(timelineEventList[i]);
+            } else if (room && event && event.event && room.roomId === event.event.room_id && event.getContent().status && event.getContent().action) {
+                event["action"] = "updateSolicitation";
+                this._solicitationEvents.push(event);
+            }
+        }
+    }
+};
+
 
 /**
  * @return {string}

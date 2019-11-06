@@ -689,6 +689,8 @@ Room.prototype.setSummary = function(summary) {
     const heroes = summary["m.heroes"];
     const joinedCount = summary["m.joined_member_count"];
     const invitedCount = summary["m.invited_member_count"];
+    const interventationStatus = summary["m.intervention_status"];
+    
     if (Number.isInteger(joinedCount)) {
         this.currentState.setJoinedMemberCount(joinedCount);
     }
@@ -702,6 +704,10 @@ Room.prototype.setSummary = function(summary) {
         this._summaryHeroes = heroes.filter((userId) => {
             return userId !== this.myUserId;
         });
+    }
+
+    if (interventationStatus) {
+        this.currentState.setInterventionStatus(interventationStatus);
     }
 };
 
@@ -1288,6 +1294,7 @@ Room.prototype.updatePendingEvent = function(event, newStatus, newEventId) {
  */
 Room.prototype.addLiveEvents = function(events, duplicateStrategy) {
     let i;
+    
     if (duplicateStrategy && ["replace", "ignore"].indexOf(duplicateStrategy) === -1) {
         throw new Error("duplicateStrategy MUST be either 'replace' or 'ignore'");
     }
@@ -1320,7 +1327,11 @@ Room.prototype.addLiveEvents = function(events, duplicateStrategy) {
         else {
             // TODO: We should have a filter to say "only add state event
             // types X Y Z to the timeline".
-            this._addLiveEvent(events[i], duplicateStrategy);
+            //const action = events[i].getContent().action;
+            //if (action && action === 'update') {
+            //    duplicateStrategy = 'replace';
+            //}
+            this._addLiveEvent(events[  i], duplicateStrategy);
         }
     }
 };

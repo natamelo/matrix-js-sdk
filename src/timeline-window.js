@@ -80,6 +80,9 @@ function TimelineWindow(client, timelineSet, opts) {
 
     this._eventCount = 0;
     this._windowLimit = opts.windowLimit || 1000;
+    this._showSolicitations = opts.showSolicitations || false;
+    this._showInterventions = opts.showInterventions || false;
+    this._roomId = opts.roomId || -1;
 }
 
 /**
@@ -224,9 +227,9 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
     }
 
     let tl;
-    if (direction == EventTimeline.BACKWARDS) {
+    if (direction === EventTimeline.BACKWARDS) {
         tl = this._start;
-    } else if (direction == EventTimeline.FORWARDS) {
+    } else if (direction === EventTimeline.FORWARDS) {
         tl = this._end;
     } else {
         throw new Error("Invalid direction '" + direction + "'");
@@ -242,7 +245,7 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
     }
 
     // try moving the cap
-    const count = (direction == EventTimeline.BACKWARDS) ?
+    const count = (direction === EventTimeline.BACKWARDS) ?
         tl.retreat(size) : tl.advance(size);
 
     if (count) {
@@ -252,7 +255,7 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
         // remove some events from the other end, if necessary
         const excess = this._eventCount - this._windowLimit;
         if (excess > 0) {
-            this.unpaginate(excess, direction != EventTimeline.BACKWARDS);
+            this.unpaginate(excess, direction !== EventTimeline.BACKWARDS);
         }
         return Promise.resolve(true);
     }
@@ -274,8 +277,11 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
     const self = this;
 
     const prom = this._client.paginateEventTimeline(tl.timeline, {
-        backwards: direction == EventTimeline.BACKWARDS,
+        backwards: direction === EventTimeline.BACKWARDS,
         limit: size,
+        showSolicitations: this._showSolicitations,
+        showInterventions: this._showInterventions,
+        roomId: this._roomId,
     }).finally(function() {
         tl.pendingPaginate = null;
     }).then(function(r) {
@@ -284,6 +290,7 @@ TimelineWindow.prototype.paginate = function(direction, size, makeRequest,
             // end of timeline
             return false;
         }
+
 
         // recurse to advance the index into the results.
         //

@@ -213,6 +213,8 @@ function MatrixClient(opts) {
     this.timelineSupport = Boolean(opts.timelineSupport);
     this.urlPreviewCache = {};
     this._notifTimelineSet = null;
+    this._solicitationTimelineSet = null;
+    this._interventionTimelineSet = null;
 
     this._crypto = null;
     this._cryptoStore = opts.cryptoStore;
@@ -429,6 +431,16 @@ MatrixClient.prototype.getNotifTimelineSet = function() {
     return this._notifTimelineSet;
 };
 
+MatrixClient.prototype.getSolicitationTimelineSet = function() {
+    return this._solicitationTimelineSet;
+};
+
+MatrixClient.prototype.getInterventionTimelineSet = function() {
+    this._interventionTimelineSet.resetLiveTimeline('end', null);
+    return this._interventionTimelineSet;
+};
+
+
 /**
  * Set the global notification EventTimelineSet
  *
@@ -436,6 +448,14 @@ MatrixClient.prototype.getNotifTimelineSet = function() {
  */
 MatrixClient.prototype.setNotifTimelineSet = function(notifTimelineSet) {
     this._notifTimelineSet = notifTimelineSet;
+};
+
+MatrixClient.prototype.setSolicitationTimelineSet = function(solicitationTimelineSet) {
+    this._solicitationTimelineSet = solicitationTimelineSet;
+};
+
+MatrixClient.prototype.setInterventionTimelineSet = function(interventionTimelineSet) {
+    this._interventionTimelineSet = interventionTimelineSet;
 };
 
 /**
@@ -2870,12 +2890,17 @@ function(roomId, fromToken, limit, dir, timelineFilter = undefined) {
  *    events and we reached either end of the timeline; else true.
  */
 MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
-    const isNotifTimeline = (eventTimeline.getTimelineSet() === this._notifTimelineSet);
+    const isNotifTimeline = (eventTimeline.getTimelineSet() === this._notifTimelineSet) ||
+        (eventTimeline.getTimelineSet() === this._solicitationTimelineSet) ||
+        (eventTimeline.getTimelineSet() === this._interventionTimelineSet);
 
     // TODO: we should implement a backoff (as per scrollback()) to deal more
     // nicely with HTTP errors.
     opts = opts || {};
     const backwards = opts.backwards || false;
+    const showSolicitations = opts.showSolicitations || false;
+    const showInterventions = opts.showInterventions || false;
+    const roomId = opts.roomId || 0;
 
     if (isNotifTimeline) {
         if (!backwards) {
@@ -2898,14 +2923,22 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
         return pendingRequest;
     }
 
-    let path, params, promise;
+    let path; let params; let promise;
     const self = this;
 
     if (isNotifTimeline) {
-        path = "/notifications";
+        if (showInterventions) {
+            path = "/interventions";
+        } else if(showSolicitations) {
+            path = "/solicitations";
+        } else {
+            path = "/notifications";
+        }
+
         params = {
             limit: ('limit' in opts) ? opts.limit : 30,
             only: 'highlight',
+            room_id: roomId,
         };
 
         if (token && token !== "end") {
@@ -2938,6 +2971,7 @@ MatrixClient.prototype.paginateEventTimeline = function(eventTimeline, opts) {
             if (backwards && !res.next_token) {
                 eventTimeline.setPaginationToken(null, dir);
             }
+
             return res.next_token ? true : false;
         }).finally(function() {
             eventTimeline._paginationRequests[dir] = null;
@@ -3002,6 +3036,64 @@ MatrixClient.prototype.resetNotifTimelineSet = function() {
     // from the current point in time.  This may well overlap with historical
     // notifs which are then inserted into the timeline by /sync responses.
     this._notifTimelineSet.resetLiveTimeline('end', null);
+
+    // we could try to paginate a single event at this point in order to get
+    // a more valid pagination token, but it just ends up with an out of order
+    // timeline. given what a mess this is and given we're going to have duplicate
+    // events anyway, just leave it with the dummy token for now.
+    /*
+    this.paginateNotifTimeline(this._notifTimelineSet.getLiveTimeline(), {
+        backwards: true,
+        limit: 1
+    });
+    */
+};
+
+MatrixClient.prototype.resetSolicitationTimelineSet = function() {
+    if (!this._solicitationTimelineSet) {
+        return;
+    }
+
+    // FIXME: This thing is a total hack, and results in duplicate events being
+    // added to the timeline both from /sync and /notifications, and lots of
+    // slow and wasteful processing and pagination.  The correct solution is to
+    // extend /messages or /search or something to filter on notifications.
+
+    // use the fictitious token 'end'. in practice we would ideally give it
+    // the oldest backwards pagination token from /sync, but /sync doesn't
+    // know about /notifications, so we have no choice but to start paginating
+    // from the current point in time.  This may well overlap with historical
+    // notifs which are then inserted into the timeline by /sync responses.
+    this._solicitationTimelineSet.resetLiveTimeline('end', null);
+
+    // we could try to paginate a single event at this point in order to get
+    // a more valid pagination token, but it just ends up with an out of order
+    // timeline. given what a mess this is and given we're going to have duplicate
+    // events anyway, just leave it with the dummy token for now.
+    /*
+    this.paginateNotifTimeline(this._notifTimelineSet.getLiveTimeline(), {
+        backwards: true,
+        limit: 1
+    });
+    */
+};
+
+MatrixClient.prototype.resetInterventionTimelineSet = function() {
+    if (!this._interventionTimelineSet) {
+        return;
+    }
+
+    // FIXME: This thing is a total hack, and results in duplicate events being
+    // added to the timeline both from /sync and /notifications, and lots of
+    // slow and wasteful processing and pagination.  The correct solution is to
+    // extend /messages or /search or something to filter on notifications.
+
+    // use the fictitious token 'end'. in practice we would ideally give it
+    // the oldest backwards pagination token from /sync, but /sync doesn't
+    // know about /notifications, so we have no choice but to start paginating
+    // from the current point in time.  This may well overlap with historical
+    // notifs which are then inserted into the timeline by /sync responses.
+    this._interventionTimelineSet.resetLiveTimeline('end', null);
 
     // we could try to paginate a single event at this point in order to get
     // a more valid pagination token, but it just ends up with an out of order
@@ -3310,7 +3402,7 @@ MatrixClient.prototype.getRoomPushRule = function(scope, roomId) {
  */
 MatrixClient.prototype.setRoomMutePushRule = function(scope, roomId, mute) {
     const self = this;
-    let deferred, hasDontNotifyRule;
+    let deferred; let hasDontNotifyRule;
 
     // Get the existing room-kind push rule if any
     const roomPushRule = this.getRoomPushRule(scope, roomId);
